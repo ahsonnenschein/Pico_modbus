@@ -51,7 +51,12 @@ int main(void)
 {
     // Initialize stdio for USB serial output
     stdio_init_all();
-    sleep_ms(1000);
+
+    // Wait for USB serial to be ready
+    while (!stdio_usb_connected()) {
+        sleep_ms(100);
+    }
+    sleep_ms(500);
 
     printf("\n");
     printf("========================================\n");
@@ -106,10 +111,6 @@ static bool network_init(void)
     // Generate MAC address from Pico unique ID
     generate_mac_address(g_mac_addr);
 
-    printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-           g_mac_addr[0], g_mac_addr[1], g_mac_addr[2],
-           g_mac_addr[3], g_mac_addr[4], g_mac_addr[5]);
-
     // Check if W6100 is responding
     if (ctlwizchip(CW_GET_PHYLINK, &tmp) != 0) {
         printf("ERROR: W6100 not responding!\n");
@@ -122,11 +123,10 @@ static bool network_init(void)
         return false;
     }
 
-    // Unlock network registers before setting MAC/IP/etc
+    // Set MAC address (must unlock network registers for W6100)
     NETUNLOCK();
-
-    // Set MAC address
     setSHAR(g_mac_addr);
+    NETLOCK();
 
     // Set network mode to IPv4
     setNET4MR(0x00);
@@ -163,10 +163,12 @@ static void dhcp_ip_assign(void)
     getGWfromDHCP(g_gateway);
     getSNfromDHCP(g_subnet);
 
-    // Apply network configuration
+    // Apply network configuration (must unlock for W6100)
+    NETUNLOCK();
     setSIPR(g_ip_addr);
     setGAR(g_gateway);
     setSUBR(g_subnet);
+    NETLOCK();
 
     g_dhcp_got_ip = true;
 
@@ -184,10 +186,12 @@ static void dhcp_ip_update(void)
     getGWfromDHCP(g_gateway);
     getSNfromDHCP(g_subnet);
 
-    // Apply network configuration
+    // Apply network configuration (must unlock for W6100)
+    NETUNLOCK();
     setSIPR(g_ip_addr);
     setGAR(g_gateway);
     setSUBR(g_subnet);
+    NETLOCK();
 
     printf("\nDHCP IP Updated!\n");
     print_network_info();

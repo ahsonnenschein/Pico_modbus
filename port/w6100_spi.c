@@ -1,6 +1,7 @@
 #include "w6100_spi.h"
 #include "wizchip_conf.h"
 
+#include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/critical_section.h"
 #include "hardware/spi.h"
@@ -13,7 +14,7 @@ void w6100_spi_init(void)
     // Initialize critical section
     critical_section_init(&g_spi_crit_sec);
 
-    // Initialize SPI at 33MHz
+    // Initialize SPI
     spi_init(W6100_SPI_PORT, W6100_SPI_CLOCK_HZ);
 
     // Set SPI format: 8 bits, CPOL=0, CPHA=0
