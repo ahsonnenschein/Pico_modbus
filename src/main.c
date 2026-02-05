@@ -7,6 +7,7 @@
 
 #include "w6100_spi.h"
 #include "wizchip_conf.h"
+#include "w6100.h"
 #include "socket.h"
 #include "dhcp.h"
 
@@ -50,9 +51,7 @@ int main(void)
 {
     // Initialize stdio for USB serial output
     stdio_init_all();
-
-    // Wait for USB connection (optional, for debugging)
-    sleep_ms(2000);
+    sleep_ms(1000);
 
     printf("\n");
     printf("========================================\n");
@@ -61,15 +60,12 @@ int main(void)
     printf("========================================\n");
 
     // Initialize I/O (ADC and GPIO)
-    printf("Initializing I/O...\n");
     io_handler_init();
 
     // Initialize W6100 SPI interface
-    printf("Initializing W6100 SPI...\n");
     w6100_spi_init();
 
     // Initialize network (W6100 chip and DHCP)
-    printf("Initializing network...\n");
     if (!network_init()) {
         printf("ERROR: Failed to initialize network!\n");
         while (1) {
@@ -78,10 +74,8 @@ int main(void)
     }
 
     // Initialize Modbus server
-    printf("Initializing Modbus server...\n");
     modbus_server_init();
 
-    printf("Starting main loop...\n");
     printf("Waiting for DHCP...\n");
 
     // Main loop
@@ -104,7 +98,10 @@ int main(void)
 static bool network_init(void)
 {
     uint8_t tmp;
-    uint8_t mem_size[8] = {2, 2, 2, 2, 2, 2, 2, 2}; // 2KB per socket
+    // TX buffer sizes (8 sockets) + RX buffer sizes (8 sockets) = 16 bytes
+    // 2KB per socket for both TX and RX
+    uint8_t mem_size[16] = {2, 2, 2, 2, 2, 2, 2, 2,   // TX: 2KB each
+                           2, 2, 2, 2, 2, 2, 2, 2};  // RX: 2KB each
 
     // Generate MAC address from Pico unique ID
     generate_mac_address(g_mac_addr);
@@ -124,6 +121,9 @@ static bool network_init(void)
         printf("ERROR: Failed to initialize W6100 memory!\n");
         return false;
     }
+
+    // Unlock network registers before setting MAC/IP/etc
+    NETUNLOCK();
 
     // Set MAC address
     setSHAR(g_mac_addr);
@@ -189,8 +189,7 @@ static void dhcp_ip_update(void)
     setGAR(g_gateway);
     setSUBR(g_subnet);
 
-    printf("\n");
-    printf("DHCP IP Updated!\n");
+    printf("\nDHCP IP Updated!\n");
     print_network_info();
 }
 
